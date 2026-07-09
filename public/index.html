@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>Codex WebUI</title>
+    <link rel="stylesheet" href="/vendor/@xterm/xterm/css/xterm.css">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="app-shell" data-app-shell>
+      <aside class="side-rail" aria-label="主导航">
+        <div class="brand-block">
+          <div class="brand-mark" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <div>
+            <p class="eyebrow">Codex WebUI</p>
+            <h1>Operator Console</h1>
+          </div>
+        </div>
+        <nav class="nav-stack" data-nav></nav>
+        <div class="sidebar-sessions" data-sidebar-sessions></div>
+        <div class="rail-footer">
+          <p class="metric-label">CLI</p>
+          <strong data-codex-version>checking</strong>
+          <span data-codex-health>local adapter</span>
+        </div>
+        <nav class="nav-stack nav-bottom" data-bottom-nav></nav>
+      </aside>
+
+      <div class="workspace">
+        <header class="topbar">
+          <button class="button icon ghost sidebar-toggle" type="button" data-action="toggle-sidebar" data-sidebar-toggle aria-label="隐藏侧边栏" title="隐藏侧边栏">‹</button>
+          <div>
+            <p class="eyebrow" data-active-kicker>Workspace</p>
+            <h2 data-active-title>Codex 会话</h2>
+          </div>
+          <canvas id="signalCanvas" class="signal-canvas" width="420" height="72" aria-hidden="true"></canvas>
+        </header>
+
+        <main class="content">
+          <section class="view active" data-view="console" aria-label="Codex 会话"></section>
+          <section class="view" data-view="settings" aria-label="设置"></section>
+        </main>
+      </div>
+    </div>
+
+    <nav class="mobile-nav" data-mobile-nav aria-label="移动端导航"></nav>
+    <div class="toast-zone" data-toasts aria-live="polite"></div>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
