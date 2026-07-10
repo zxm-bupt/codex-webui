@@ -2,7 +2,24 @@
 
 一个零依赖本地 WebUI，用浏览器操作本机 Codex CLI，并把 MCP、Codex Plugin/Skill、主机适配入口放到同一个控制台里。
 
-## Run
+## Install
+
+Install globally:
+
+```bash
+npm install -g @zxm-bupt/codex-webui
+codex-webui
+```
+
+Or run without a global install:
+
+```bash
+npx @zxm-bupt/codex-webui
+```
+
+The CLI defaults to `http://127.0.0.1:8787` and expects the `codex` command to be available in `PATH`.
+
+## Development
 
 ```bash
 npm run dev
@@ -31,6 +48,12 @@ http://<server-ip>:8787
 ```bash
 HOST=127.0.0.1 PORT=8787 npm run dev
 ```
+
+```bash
+CODEX_BIN=/path/to/codex CODEX_WEBUI_DATA_DIR=/path/to/state codex-webui
+```
+
+运行时状态和上传文件默认保存在 `~/.codex-webui/`，避免全局安装时写入 npm 的安装目录。
 
 ## Current scope
 

@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 import { createReadStream, existsSync, promises as fs } from "node:fs";
@@ -11,12 +13,12 @@ import pty from "node-pty";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, "public");
 const nodeModulesDir = path.join(__dirname, "node_modules");
-const dataDir = path.join(__dirname, "data");
+const dataDir = process.env.CODEX_WEBUI_DATA_DIR || path.join(os.homedir(), ".codex-webui");
 const stateFile = path.join(dataDir, "webui-state.json");
 const uploadDir = path.join(dataDir, "uploads");
 const codexHome = process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
 const codexSessionsDir = path.join(codexHome, "sessions");
-const codexBin = process.env.CODEX_BIN || "/usr/local/node/bin/codex";
+const codexBin = process.env.CODEX_BIN || "codex";
 const terminalEnabled = process.env.ENABLE_TERMINAL === "1";
 const host = process.env.HOST || "127.0.0.1";
 const port = Number(process.env.PORT || 8787);

@@ -1,13 +1,32 @@
 {
-  "name": "codex-webui",
+  "name": "@zxm-bupt/codex-webui",
   "version": "0.1.0",
-  "private": true,
+  "description": "Browser-based local console for Codex CLI, MCP, skills, and terminal sessions.",
   "type": "module",
+  "bin": {
+    "codex-webui": "./server.js"
+  },
+  "files": [
+    "server.js",
+    "public"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zxm-bupt/codex-webui.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zxm-bupt/codex-webui/issues"
+  },
+  "homepage": "https://github.com/zxm-bupt/codex-webui#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "node server.js",
     "dev:lan": "HOST=0.0.0.0 node server.js",
     "start": "node server.js",
-    "check": "node --check server.js"
+    "check": "node --check server.js && node --check public/app.js",
+    "prepack": "npm run check"
   },
   "engines": {
     "node": ">=20"
