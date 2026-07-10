@@ -4,7 +4,7 @@
   "description": "Browser-based local console for Codex CLI, MCP, skills, and terminal sessions.",
   "type": "module",
   "bin": {
-    "codex-webui": "./server.js"
+    "codex-webui": "server.js"
   },
   "files": [
     "server.js",
