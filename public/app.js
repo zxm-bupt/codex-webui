@@ -5,6 +5,7 @@ const views = [
   { id: "console", icon: "C", title: "Codex 会话", subtitle: "浏览器工作台", kicker: "Workspace" },
   { id: "settings", icon: "⚙", title: "设置", subtitle: "Hosts, MCP and skills", kicker: "Settings" }
 ];
+const fallbackModels = ["gpt-5.6", "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.5", "gpt-5.1-codex", "gpt-5", "o3", "o4-mini"];
 
 function initialViewId() {
   const hashView = window.location.hash.replace(/^#/, "");
@@ -55,7 +56,8 @@ const state = {
   codexSessions: [],
   attachments: [],
   selectedHost: localStorage.getItem("codex-webui:host") || "local-codex",
-  selectedModel: localStorage.getItem("codex-webui:model") || "gpt-5.5",
+  selectedModel: localStorage.getItem("codex-webui:model") || "",
+  models: [],
   selectedApproval: localStorage.getItem("codex-webui:approval") || "on-request",
   selectedSandbox: localStorage.getItem("codex-webui:sandbox") || "workspace-write",
   skillFilter: "all",
@@ -76,6 +78,8 @@ const state = {
   events: [],
   sessions: loadSessions(),
   activeSessionId: null,
+  newSessionCwd: localStorage.getItem("codex-webui:cwd") || "",
+  directoryPicker: { open: false, path: "", parent: null, roots: [], directories: [] },
   localSkillPrefs: normalizeSkillPrefs(readJsonStorage("codex-webui:skill-prefs", {}))
 };
 
@@ -292,9 +296,22 @@ function applySidebarState() {
 }
 
 async function refreshAll() {
-  await Promise.allSettled([refreshStatus(), refreshHosts(), refreshLocalSkills(), refreshCodexSessions()]);
+  await Promise.allSettled([refreshStatus(), refreshHosts(), refreshLocalSkills(), refreshCodexSessions(), refreshModels()]);
   await Promise.allSettled([refreshMcp(), refreshPlugins()]);
   renderAll();
+}
+
+async function refreshModels() {
+  try {
+    const payload = await api("/api/models");
+    state.models = Array.isArray(payload.models) ? payload.models.filter(Boolean) : [];
+    if (!state.selectedModel && state.models[0]) {
+      state.selectedModel = state.models[0];
+      localStorage.setItem("codex-webui:model", state.selectedModel);
+    }
+  } catch {
+    state.models = [];
+  }
 }
 
 async function refreshStatus() {
@@ -518,12 +535,51 @@ function renderNewSessionSurface(canRun) {
               </label>
             </div>
             <label class="cwd-field">工作目录
-              <input name="cwd" value="${escapeHtml(locationWorkspace())}" placeholder="/home/euler/workspace/project" required ${canRun ? "" : "disabled"}>
+              <input type="hidden" name="cwd" value="${escapeHtml(state.newSessionCwd)}" required>
+              <button class="directory-select" type="button" data-action="open-directory-picker" ${canRun ? "" : "disabled"}>
+                <span class="directory-select-path">${escapeHtml(state.newSessionCwd || "选择工作目录")}</span>
+                <span class="directory-select-action">选择</span>
+              </button>
             </label>
             <div class="composer-row">
               <button class="button primary" type="submit" ${canRun ? "" : "disabled"}>创建会话</button>
             </div>
           </form>
+        </div>
+      </section>
+      ${renderDirectoryPicker()}
+    </div>
+  `;
+}
+
+function renderDirectoryPicker() {
+  const picker = state.directoryPicker;
+  if (!picker.open) {
+    return "";
+  }
+  return `
+    <div class="directory-dialog-backdrop" role="presentation">
+      <section class="directory-dialog" role="dialog" aria-modal="true" aria-label="选择工作目录">
+        <div class="directory-dialog-header">
+          <div>
+            <p class="eyebrow">Working Directory</p>
+            <h3>选择工作目录</h3>
+          </div>
+          <button class="button icon ghost" type="button" data-action="close-directory-picker" title="关闭" aria-label="关闭">×</button>
+        </div>
+        <div class="directory-roots">
+          ${picker.roots.map((root) => `<button class="button ghost slim ${root === picker.path ? "active" : ""}" type="button" data-directory-path="${escapeHtml(root)}">${escapeHtml(root)}</button>`).join("")}
+        </div>
+        <p class="directory-current" title="${escapeHtml(picker.path)}">${escapeHtml(picker.path)}</p>
+        <div class="directory-list">
+          ${picker.parent ? `<button class="directory-entry" type="button" data-directory-path="${escapeHtml(picker.parent)}"><span aria-hidden="true">..</span><strong>上级目录</strong></button>` : ""}
+          ${picker.directories.length
+            ? picker.directories.map((entry) => `<button class="directory-entry" type="button" data-directory-path="${escapeHtml(entry.path)}"><span aria-hidden="true">/</span><strong>${escapeHtml(entry.name)}</strong></button>`).join("")
+            : `<p class="empty-state compact">没有可选子目录</p>`}
+        </div>
+        <div class="directory-dialog-actions">
+          <button class="button ghost" type="button" data-action="close-directory-picker">取消</button>
+          <button class="button primary" type="button" data-action="select-directory">使用此目录</button>
         </div>
       </section>
     </div>
@@ -695,7 +751,7 @@ function roleName(role) {
 }
 
 function modelOptions() {
-  return ["gpt-5.5", "gpt-5.1-codex", "gpt-5", "o3", "o4-mini"];
+  return [...new Set([state.selectedModel, ...state.models, ...fallbackModels].filter(Boolean))];
 }
 
 function approvalOptions() {
@@ -773,7 +829,39 @@ function createLocalSession(title, hostId = state.selectedHost, options = {}) {
 function newSession() {
   state.activeSessionId = null;
   state.attachments = [];
+  state.directoryPicker.open = false;
   saveSessions();
+  renderConsole();
+}
+
+async function openDirectoryPicker(directoryPath = state.newSessionCwd) {
+  try {
+    const query = directoryPath ? `?path=${encodeURIComponent(directoryPath)}` : "";
+    const payload = await api(`/api/directories${query}`);
+    state.directoryPicker = {
+      open: true,
+      path: payload.path,
+      parent: payload.parent,
+      roots: payload.roots || [],
+      directories: payload.directories || []
+    };
+    renderConsole();
+  } catch (error) {
+    if (directoryPath) {
+      return openDirectoryPicker("");
+    }
+    throw error;
+  }
+}
+
+function closeDirectoryPicker() {
+  state.directoryPicker.open = false;
+  renderConsole();
+}
+
+function selectDirectory() {
+  state.newSessionCwd = state.directoryPicker.path;
+  state.directoryPicker.open = false;
   renderConsole();
 }
 
@@ -787,6 +875,13 @@ async function submitNewSession(event, form = event.target) {
   const cwd = String(values.cwd || "").trim();
   if (!cwd) {
     toast("创建会话前需要选择工作目录。");
+    return;
+  }
+  try {
+    await api(`/api/directories?path=${encodeURIComponent(cwd)}`);
+  } catch {
+    toast("选择的工作目录已不存在，请重新选择。");
+    await openDirectoryPicker("");
     return;
   }
   const sandbox = String(values.sandbox || state.selectedSandbox);
@@ -1926,6 +2021,11 @@ async function handleDocumentClick(event) {
     return;
   }
 
+  if (button.dataset.directoryPath) {
+    await openDirectoryPicker(button.dataset.directoryPath);
+    return;
+  }
+
   switch (button.dataset.action) {
     case "refresh":
       await refreshAll();
@@ -1933,6 +2033,15 @@ async function handleDocumentClick(event) {
       break;
     case "new-session":
       newSession();
+      break;
+    case "open-directory-picker":
+      await openDirectoryPicker();
+      break;
+    case "close-directory-picker":
+      closeDirectoryPicker();
+      break;
+    case "select-directory":
+      selectDirectory();
       break;
     case "clear-session":
       clearSession();
@@ -2039,6 +2148,24 @@ document.addEventListener("submit", (event) => {
 document.addEventListener("input", handleDocumentInput);
 document.addEventListener("keydown", (event) => {
   const target = event.target instanceof Element ? event.target : null;
+  const composer = target?.closest("[data-composer]");
+  if (
+    target instanceof HTMLTextAreaElement
+    && target.name === "prompt"
+    && composer instanceof HTMLFormElement
+    && event.key === "Enter"
+    && !event.shiftKey
+    && !event.ctrlKey
+    && !event.altKey
+    && !event.metaKey
+    && !event.isComposing
+  ) {
+    event.preventDefault();
+    if (!target.disabled && !state.busy) {
+      composer.requestSubmit();
+    }
+    return;
+  }
   const isEditable = target?.matches("input, textarea, select, [contenteditable='true']");
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b" && !isEditable) {
     event.preventDefault();

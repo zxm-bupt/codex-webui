@@ -55,6 +55,12 @@ CODEX_BIN=/path/to/codex CODEX_WEBUI_DATA_DIR=/path/to/state codex-webui
 
 运行时状态和上传文件默认保存在 `~/.codex-webui/`，避免全局安装时写入 npm 的安装目录。
 
+新会话的工作目录通过服务端目录选择器选取，并在创建前校验其存在。默认可浏览用户主目录和启动命令所在目录；可用 `CODEX_WEBUI_DIRECTORY_ROOTS` 限制范围，多个根目录使用系统路径分隔符：
+
+```bash
+CODEX_WEBUI_DIRECTORY_ROOTS=/home/euler/workspace:/mnt/projects codex-webui
+```
+
 ## Current scope
 
 - Codex 会话：浏览器提交 prompt，后端通过 `codex exec --json` 执行并以 NDJSON 流返回。

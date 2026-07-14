@@ -22,6 +22,7 @@ const codexBin = process.env.CODEX_BIN || "codex";
 const terminalEnabled = process.env.ENABLE_TERMINAL === "1";
 const host = process.env.HOST || "127.0.0.1";
 const port = Number(process.env.PORT || 8787);
+const defaultModels = ["gpt-5.6", "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.5", "gpt-5.1-codex", "gpt-5", "o3", "o4-mini"];
 
 const mimeTypes = new Map([
   [".html", "text/html; charset=utf-8"],
@@ -99,6 +100,90 @@ async function directoryExists(dirPath) {
   } catch {
     return false;
   }
+}
+
+function directoryRootCandidates() {
+  const configured = String(process.env.CODEX_WEBUI_DIRECTORY_ROOTS || "")
+    .split(path.delimiter)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  const candidates = configured.length ? configured : [os.homedir(), process.cwd()];
+  return [...new Set(candidates.map((entry) => path.resolve(entry)))];
+}
+
+function isWithinDirectoryRoot(directoryPath, rootPath) {
+  return directoryPath === rootPath || directoryPath.startsWith(`${rootPath}${path.sep}`);
+}
+
+async function availableDirectoryRoots() {
+  const roots = [];
+  for (const candidate of directoryRootCandidates()) {
+    if (await directoryExists(candidate)) {
+      roots.push(candidate);
+    }
+  }
+  return roots;
+}
+
+async function resolveBrowsableDirectory(value) {
+  const roots = await availableDirectoryRoots();
+  if (!roots.length) {
+    const error = new Error("No accessible directory roots are configured.");
+    error.statusCode = 500;
+    throw error;
+  }
+  const directoryPath = value ? path.resolve(String(value)) : roots[0];
+  if (!roots.some((rootPath) => isWithinDirectoryRoot(directoryPath, rootPath))) {
+    const error = new Error("Directory is outside the configured browse roots.");
+    error.statusCode = 403;
+    throw error;
+  }
+  if (!(await directoryExists(directoryPath))) {
+    const error = new Error(`Working directory does not exist: ${directoryPath}`);
+    error.statusCode = 404;
+    throw error;
+  }
+  return { directoryPath, roots };
+}
+
+async function listDirectories(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const { directoryPath, roots } = await resolveBrowsableDirectory(url.searchParams.get("path"));
+  const entries = await fs.readdir(directoryPath, { withFileTypes: true });
+  const directories = entries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => ({ name: entry.name, path: path.join(directoryPath, entry.name) }))
+    .sort((left, right) => left.name.localeCompare(right.name, undefined, { numeric: true, sensitivity: "base" }));
+  const parentCandidate = path.dirname(directoryPath);
+  const parent = roots.some((rootPath) => isWithinDirectoryRoot(parentCandidate, rootPath)) && parentCandidate !== directoryPath
+    ? parentCandidate
+    : null;
+  sendJson(res, 200, { path: directoryPath, parent, roots, directories });
+}
+
+async function listModels(res) {
+  const discovered = [];
+  const addModel = (value) => {
+    const model = String(value || "").trim();
+    if (model && !discovered.includes(model)) {
+      discovered.push(model);
+    }
+  };
+
+  try {
+    const config = await fs.readFile(path.join(codexHome, "config.toml"), "utf8");
+    for (const match of config.matchAll(/^\s*(?:model|review_model)\s*=\s*["']([^"']+)["']\s*$/gm)) {
+      addModel(match[1]);
+    }
+    for (const match of config.matchAll(/^\s*["']([^"']+)["']\s*=\s*\d+\s*$/gm)) {
+      addModel(match[1]);
+    }
+  } catch {
+    // The default candidates remain available when no local config exists.
+  }
+
+  defaultModels.forEach(addModel);
+  sendJson(res, 200, { models: discovered });
 }
 
 function isUuid(value) {
@@ -1153,6 +1238,8 @@ async function route(req, res) {
 
   try {
     if (req.method === "GET" && pathname === "/api/status") return getStatus(res);
+    if (req.method === "GET" && pathname === "/api/models") return listModels(res);
+    if (req.method === "GET" && pathname === "/api/directories") return await listDirectories(req, res);
     if (req.method === "GET" && pathname === "/api/codex/sessions") return listCodexSessions(res);
     if (req.method === "GET" && pathname.startsWith("/api/codex/sessions/")) {
       return getCodexSession(res, decodeURIComponent(pathname.slice("/api/codex/sessions/".length)));

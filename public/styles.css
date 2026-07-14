@@ -510,6 +510,138 @@ select:focus {
   font-weight: 800;
 }
 
+.directory-select {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 11px;
+  color: var(--ink);
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+}
+
+.directory-select:hover {
+  background: var(--surface-alt);
+}
+
+.directory-select-path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.directory-select-action {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.directory-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(17, 17, 17, 0.18);
+}
+
+.directory-dialog {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(180px, 1fr) auto;
+  width: min(720px, 100%);
+  max-height: min(680px, calc(100vh - 40px));
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  box-shadow: 0 18px 54px rgba(17, 17, 17, 0.16);
+}
+
+.directory-dialog-header,
+.directory-dialog-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px;
+}
+
+.directory-dialog-header h3 {
+  margin: 3px 0 0;
+  font-size: 18px;
+}
+
+.directory-roots {
+  display: flex;
+  gap: 7px;
+  padding: 0 14px 10px;
+  overflow-x: auto;
+}
+
+.directory-roots .button.active {
+  color: #fff;
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.directory-current {
+  margin: 0;
+  padding: 9px 14px;
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--surface-alt);
+}
+
+.directory-list {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+}
+
+.directory-entry {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-height: 38px;
+  padding: 8px;
+  color: var(--ink);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+}
+
+.directory-entry:hover {
+  background: var(--surface-alt);
+}
+
+.directory-entry span {
+  color: var(--muted);
+  font-family: var(--mono);
+  text-align: center;
+}
+
+.directory-entry strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .panel {
   min-width: 0;
   background: var(--surface);
@@ -1572,6 +1704,15 @@ select:focus {
 
   .new-session-shell {
     width: 100%;
+  }
+
+  .directory-dialog-backdrop {
+    align-items: end;
+    padding: 10px;
+  }
+
+  .directory-dialog {
+    max-height: min(640px, calc(100vh - 20px));
   }
 
   .composer-controls {
